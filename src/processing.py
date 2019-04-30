@@ -1,5 +1,6 @@
 from src.settings import *
 import re
+from computorv1 import computor
 
 def calculate_matrix(storage, matrix1, matrix2, operations):
     m1 = storage[MATR][matrix1]
@@ -122,8 +123,33 @@ def convert_to_equation(input):
     input = input.replace("X=", "X^1=")
     input = input.replace("X", "X^1")
     input = input.replace("X^1^", "X^")
-    input = input.replace("*", " * ")
-    return input
+
+    result = []
+    args = list(re.split('\+|-', input))
+    operation = list(re.findall('\+|-', input))
+    for arg in args:
+        if arg.strip().isnumeric():
+            args[args.index(arg)] = arg.strip() + "*X^0"
+        if arg.strip() != "" and (arg.strip())[0] == "X":
+            args[args.index(arg)] = "1*" + arg.strip()
+    
+    i = 0
+    for arg in args:
+        if arg == "":
+            result.append(operation[i].strip())
+            i += 1
+            continue
+        result.append(arg)
+        if i < len(operation):
+            result.append(operation[i].strip())
+            i += 1
+
+    result = "".join(result).strip()
+    result = result.replace("*", " * ")
+    result = result.replace("+", " + ")
+    result = result.replace("-", " - ")
+
+    return result.strip()
 
 
 def process_input(input_line, storage):
@@ -191,7 +217,14 @@ def process_input(input_line, storage):
                     left_side = left_side.replace(var, str(storage[VARS][var]))
             
             # Add computing an equation
-            raise Exception(convert_to_equation(left_side) + " = " + convert_to_equation(right_side))
+            if "x" in right_side or "x" in left_side:
+                try:
+                    eq = convert_to_equation(left_side) + " = " + convert_to_equation(right_side)
+                    print("EQ>", eq)
+                    result = computor.Computor(eq).compute()
+                    print_matrix(result)
+                except Exception:
+                    raise Exception(convert_to_equation(left_side) + " = " + convert_to_equation(right_side))
 
         # Prevent variable naming as 'i'
         elif left_side == "i":
@@ -239,12 +272,10 @@ def process_input(input_line, storage):
 
             # Parse simple expression and save to variable
             elif bool(re.match(RE_EXPRESSION, right_side)):
-                if left_side == "x":
-                    raise Exception("ERROR: Sorry, you should use x only with functions declaration")
                 error, need_to_evaluate = "ERROR: Expression formatting error", True
 
             # Parse expression with another variable
-            elif bool(re.match(RE_EXPRESSION_WITH_VAR, right_side)):
+            elif bool(re.match(RE_EXPRESSION_WITH_VAR, right_side)) and left_side != "f(x)":
                 for var in storage[VARS]:
                     right_side = right_side.replace(var, str(storage[VARS][var]))
                 error, need_to_evaluate = "ERROR: Unknown variable", True
@@ -290,6 +321,7 @@ def process_input(input_line, storage):
                 raise Exception("ERROR: Seems to be death recursion xxx")
             # Parse expression with function
             for var in storage[VARS]:
+                if var != "x":
                     right_side = right_side.replace(var, str(storage[VARS][var]))
             funcs = re.findall(RE_FUNCTION, right_side)
             for func in funcs:
