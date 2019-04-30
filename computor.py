@@ -12,7 +12,7 @@ except Exception as error:
 if __name__ == "__main__":
     input_line = str()
     STORAGE = {
-        VARS: {"a": 10},
+        VARS: {},
         FUNC: {},
         MATR: {},
         COMP: {}
@@ -34,6 +34,14 @@ if __name__ == "__main__":
         if input_line.lower() == VARS:
             print("Printing storage..")
             print_storage(STORAGE)
+
+        if input_line.lower() == CLEAR:
+            STORAGE = {
+                VARS: {},
+                FUNC: {},
+                MATR: {},
+                COMP: {}
+            }
 
         try:
             process_input(input_line.lower(), STORAGE)

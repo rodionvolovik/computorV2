@@ -143,14 +143,11 @@ def process_input(input_line, storage):
             matrixes = re.split('\+|-|\/|\*|\(|\)', left_side)
             matrixes = list(filter(None, matrixes))
             operation = list(re.findall('\+|-|\/|\*|\(|\)', left_side))
-            if not all(c in storage[MATR] for c in matrixes):
-                raise Exception("ERROR: Allowed only operations between 2 matrixes")
-            else:
-                if len(matrixes) != 2:
-                    raise Exception("ERROR: Allowed only operations between 2 matrixes")
-                calc = calculate_matrix(storage, matrixes[0], matrixes[1], operation[0])
-                print_matrix(calc)
-                raise Exception()
+            if all(c in storage[MATR] for c in matrixes):
+                if any(c in storage[MATR] for c in matrixes):
+                    calc = calculate_matrix(storage, matrixes[0], matrixes[1], operation[0])
+                    print_matrix(calc)
+                    raise Exception()
 
             if bool(re.findall(RE_FUNCTION, left_side)):
                 for var in storage[VARS]:
@@ -163,6 +160,7 @@ def process_input(input_line, storage):
             if bool(re.match(RE_EXPRESSION_WITH_VAR, left_side)):
                 for var in storage[VARS]:
                     left_side = left_side.replace(var, str(storage[VARS][var]))
+
             try:
                 print(eval(left_side))
             except Exception:
@@ -192,6 +190,7 @@ def process_input(input_line, storage):
                 for var in storage[VARS]:
                     left_side = left_side.replace(var, str(storage[VARS][var]))
             
+            # Add computing an equation
             raise Exception(convert_to_equation(left_side) + " = " + convert_to_equation(right_side))
 
         # Prevent variable naming as 'i'
@@ -228,6 +227,15 @@ def process_input(input_line, storage):
                     del storage[COMP][left_side]
                 print_matrix(storage[MATR][left_side])
                 need_to_evaluate = False
+            
+            if right_side in storage[MATR]:
+                if left_side in storage[VARS]:
+                    del storage[VARS][left_side]
+                if left_side in storage[COMP]:
+                    del storage[COMP][left_side]
+                storage[MATR][left_side] = storage[MATR][right_side]
+                print_matrix(storage[MATR][left_side])
+                need_to_evaluate = False
 
             # Parse simple expression and save to variable
             elif bool(re.match(RE_EXPRESSION, right_side)):
@@ -242,10 +250,14 @@ def process_input(input_line, storage):
                 error, need_to_evaluate = "ERROR: Unknown variable", True
 
             # Parse expression with complex number
-            elif right_side.find(RE_EXPRESSION_COMPLEX) != NOT_FOUND:
+            elif right_side.find(RE_EXPRESSION_COMPLEX) != NOT_FOUND or right_side.find("i") != NOT_FOUND:
                 storage[COMP][left_side] = right_side
                 error, need_to_evaluate = "", False
-                print("Complex number")
+                if left_side in storage[VARS]:
+                    del storage[VARS][left_side]
+                if left_side in storage[MATR]:
+                    del storage[COMP][left_side]
+                print(storage[COMP][left_side])
 
             # Parse expression with function
             if bool(re.findall(RE_FUNCTION, right_side)):

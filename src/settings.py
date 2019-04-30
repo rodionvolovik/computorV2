@@ -3,6 +3,7 @@ FUNC = "func"
 MATR = "matr"
 COMP = "comp"
 
+CLEAR = "clear"
 HELP = "help"
 EXIT = "exit"
 QUIT = "quit"
