@@ -1,6 +1,55 @@
 from src.settings import *
 import re
 
+def calculate_matrix(storage, matrix1, matrix2, operations):
+    m1 = storage[MATR][matrix1]
+    m2 = storage[MATR][matrix2]
+    print("INPUT", m1, m2)
+    def check_matrix_size(m1, m2):
+        size1 = [len(m1), len(m1[0])]
+        size2 = [len(m2), len(m2[0])]
+        return size1 == size2
+    
+    def check_matrix_size_mult(m1, m2):
+        print(len(m1[0]), len(m2))
+        return len(m1[0]) == len(m2)
+    
+    new_matrix = []
+
+
+    if operations == "+":
+        if not check_matrix_size(m1, m2):
+            raise Exception("ERROR: For this operation matrixes should be equal")
+        for i in range(0, len(m1)):
+            row = []
+            for j in range(0, len(m1[i])):
+                row.append(m1[i][j] + m2[i][j])
+            new_matrix.append(row)
+    elif operations == "-":
+        if not check_matrix_size(m1, m2):
+            raise Exception("ERROR: For this operation matrixes should be equal")
+        for i in range(0, len(m1)):
+            row = []
+            for j in range(0, len(m1[i])):
+                row.append(m1[i][j] - m2[i][j])
+            new_matrix.append(row)
+    elif operations == "*":
+        if not check_matrix_size_mult(m1, m2):
+            raise Exception("ERROR: Unable to multiply matrixes")
+        for i in range(0, len(m1)):
+            row = []
+            for j in range(0, len(m2[0])):
+                sum = 0
+                for r in range(0, len(m1[0])):
+                    sum += m1[i][r] + m2[r][j]
+                row.append(sum)
+            new_matrix.append(row)
+
+    else:
+        raise Exception("ERROR: Matrix allow only + - * operations")
+
+    return new_matrix
+
 
 def reorder_storage(storage):
     list_tuples = sorted(storage.items(),  key=lambda x: len (x[0]), reverse=True)
@@ -28,6 +77,11 @@ def print_storage(storage):
     print_storage_item(storage[MATR], "Matrices")
     print_storage_item(storage[FUNC], "Functions")
     print_storage_item(storage[COMP], "Complex numbers")
+
+
+def print_matrix(matrix):
+    for elem in matrix:
+        print(elem)
 
 
 def func_calculation(func, number):
@@ -85,6 +139,19 @@ def process_input(input_line, storage):
 
         # Check if answer requested
         if right_side == "?":
+            # check matrixes
+            matrixes = re.split('\+|-|\/|\*|\(|\)', left_side)
+            matrixes = list(filter(None, matrixes))
+            operation = list(re.findall('\+|-|\/|\*|\(|\)', left_side))
+            if not all(c in storage[MATR] for c in matrixes):
+                raise Exception("ERROR: Allowed only operations between 2 matrixes")
+            else:
+                if len(matrixes) != 2:
+                    raise Exception("ERROR: Allowed only operations between 2 matrixes")
+                calc = calculate_matrix(storage, matrixes[0], matrixes[1], operation[0])
+                print_matrix(calc)
+                raise Exception()
+
             if bool(re.findall(RE_FUNCTION, left_side)):
                 for var in storage[VARS]:
                     if left_side.find("(" + var) != NOT_FOUND:
@@ -136,25 +203,36 @@ def process_input(input_line, storage):
 
             # Parse matrix
             if right_side.count('[') > 0 or right_side.count(']'):
+                matrix = 0
                 if right_side.count('[') == right_side.count(']'):
                     right_side = right_side.replace(";", ",")
                     try:
-                        storage[MATR][left_side] = eval(right_side)
+                        matrix = eval(right_side)
                     except Exception:
                         raise Exception("ERROR: Matrix format should be as [[1, 2]; [3, 4]]")
                 
-                    size_prev = len(storage[MATR][left_side][0])
+                    size_prev = len(matrix[0])
                     size = 0
-                    for i in range(1, len(storage[MATR][left_side])):
-                        size = len(storage[MATR][left_side][i])
+                    for i in range(1, len(matrix)):
+                        size = len(matrix[i])
                         if size != size_prev:
                             raise Exception("ERROR: This is not a matrix")
                 else:
                     raise Exception("ERROR: Invalid matrix syntax")
-                print(storage[MATR][left_side])
+                if type(matrix) != type([]):
+                    raise Exception("ERROR: This is not matrix. Matrix format should be as [[1, 2]; [3, 4]]")
+                storage[MATR][left_side] = matrix;
+                if left_side in storage[VARS]:
+                    del storage[VARS][left_side]
+                if left_side in storage[COMP]:
+                    del storage[COMP][left_side]
+                print_matrix(storage[MATR][left_side])
+                need_to_evaluate = False
 
             # Parse simple expression and save to variable
             elif bool(re.match(RE_EXPRESSION, right_side)):
+                if left_side == "x":
+                    raise Exception("ERROR: Sorry, you should use x only with functions declaration")
                 error, need_to_evaluate = "ERROR: Expression formatting error", True
 
             # Parse expression with another variable
@@ -167,6 +245,7 @@ def process_input(input_line, storage):
             elif right_side.find(RE_EXPRESSION_COMPLEX) != NOT_FOUND:
                 storage[COMP][left_side] = right_side
                 error, need_to_evaluate = "", False
+                print("Complex number")
 
             # Parse expression with function
             if bool(re.findall(RE_FUNCTION, right_side)):
@@ -183,6 +262,10 @@ def process_input(input_line, storage):
                     evaluated = eval(right_side)
                     storage[VARS][left_side] = evaluated
                     print(storage[VARS][left_side])
+                    if left_side in storage[MATR]:
+                        del storage[MATR][left_side]
+                    if left_side in storage[COMP]:
+                        del storage[COMP][left_side]
                 except Exception:
                     raise Exception("ERROR: Syntax error")
 
@@ -207,7 +290,6 @@ def process_input(input_line, storage):
                     if right_side.find("(" + var) != NOT_FOUND:
                         right_side = right_side.replace("(" + var, "(" + str(storage[VARS][var]))
             if bool(re.findall(RE_FUNCTION_CALCULATE, right_side)):
-                print("REPLACE ARGS", right_side)
                 right_side = replace_args_in_function(right_side, storage)
             
             if len(re.findall(RE_FUNCTION_BODY, right_side)) != 0:
